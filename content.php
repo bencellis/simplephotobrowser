@@ -142,7 +142,7 @@
 					        $GPSLocationStr = $exif[$fld]['text'];
 					        echo "<div><strong>Map Location : </strong>	<br/>
 					        <a href='https://www.google.co.uk/maps/place/$GPSLocationDecimal' target='_blank'>
-					        $GPSLocationStr
+					            $GPSLocationStr
 					        </a>
 					        </div>";
 					    }

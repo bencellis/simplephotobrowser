@@ -218,8 +218,7 @@ function getExifInfo($imagefile,$include=null) {
 	    'GPS.GPSLatitudeRef' => 'Latitute Ref',
 	    'GPS.GPSLatitude' => 'Latitute',
 	    'GPS.GPSLongitudeRef' => 'Longitude Ref',
-	    'GPS.GPSLongitude' => 'Longitude',
-	    'GPS.GPSPosition' => 'Map Location',
+	    'GPS.GPSLongitude' => 'Longitude'
 	);
 
 	if (!isset($include)) {
@@ -230,11 +229,13 @@ function getExifInfo($imagefile,$include=null) {
 		if ($exif = exif_read_data($imagefile, 0, true)) {
 			foreach ($exif as $key => $section) {
 				foreach ($section as $name => $val) {
-				    if (($val = filter_var($val, FILTER_SANITIZE_STRING)) != false) {
+				    if ($key == 'GPS' || ($val = filter_var($val, FILTER_SANITIZE_STRING)) != false) {
 				        $fldname = "$key.$name";
 				        if (isset($reqexif[$fldname])) {
     				        if ($key == 'GPS') {        // not in exif
-    				            $gpsinfo[$fldname] = $val;
+    				            if ($val) {
+    				                $gpsinfo[$fldname] = $val;
+    				            }
     				        }else{
     				            $imagexif[$reqexif[$fldname]] = $val;
     				        }
@@ -258,10 +259,12 @@ function getExifInfo($imagefile,$include=null) {
 function addEXIFLocationGPS($gpsinfo) {
     $GPSLocationStr = '';
     $GPSLocationDecimal = '';
+
     if (count($gpsinfo)) {
         // fancy referencing stuff - arrrgggghhhh
         $coordinates[] = &$gpsinfo['GPS.GPSLatitude'];
         $coordinates[] = &$gpsinfo['GPS.GPSLongitude'];
+        $latitudedone = false;
         foreach ($coordinates as &$coordinate) {
             for ($i = 0; $i < 3; $i++) {
                 $part = explode('/', $coordinate[$i]);
@@ -273,29 +276,27 @@ function addEXIFLocationGPS($gpsinfo) {
                     $coordinate[$i] = 0;
                 }
 
-                if ($i === 0) {
-                    if ($GPSLocationStr == '') {
-                        $GPSLocationStr .= $gpsinfo['GPS.GPSLatitudeRef'] . ' ';
-                    }else{
-                        $GPSLocationStr .= $gpsinfo['GPS.GPSLongitudeRef'] . ' ';
-                    }
-                }
-                $GPSLocationStr .= $coordinate[$i];
-
                 switch ($i) {
                     case 0:
-                        $GPSLocationStr .= '&deg; ';
+                        $GPSLocationStr .= $coordinate[$i] . '&deg;';
                         break;
                     case 1:
-                        $GPSLocationStr .= "' ";
+                        $GPSLocationStr .= $coordinate[$i] . "'";
                         $coordinate[$i] = $coordinate[$i]/60;
                         break;
                     case 2:
-                        $GPSLocationStr .= '" ';
+                        $GPSLocationStr .= round(floatval($coordinate[$i]),1). '"';
                         $coordinate[$i] = $coordinate[$i]/3600;
+                        if (!$latitudedone) {
+                            $GPSLocationStr .= $gpsinfo['GPS.GPSLatitudeRef'];
+                            $latitudedone = true;
+                        }else{
+                            $GPSLocationStr .= $gpsinfo['GPS.GPSLongitudeRef'];
+                        }
                         break;
                 }
             }
+            $GPSLocationStr .= ' ';
         }
 
         // now for decimal values for the map reference
@@ -318,7 +319,7 @@ function addEXIFLocationGPS($gpsinfo) {
         $GPSLocationDecimal .= (string) ($multiplier * ($gpsinfo['GPS.GPSLongitude'][0] + $gpsinfo['GPS.GPSLongitude'][1] + $gpsinfo['GPS.GPSLongitude'][2]));
     }
 
-    return array('decimal'=>$GPSLocationDecimal, 'text'=>$GPSLocationStr);
+    return array('decimal'=> $GPSLocationDecimal, 'text'=> $GPSLocationStr);
 }
 
 // function to return a urlencoded uri without breaking the slashes :(
